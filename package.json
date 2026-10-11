@@ -1,9 +1,9 @@
 {
   "name": "agent-nauki",
   "version": "2.0.0",
-  "description": "Aplikacja edukacyjna z AI",
+  "description": "Aplikacja edukacyjna z AI - inteligentny tutor do nauki matematyki i polskiego",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint"

@@ -1,0 +1,120 @@
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+import base64
+import io
+import os
+import requests
+from PIL import Image, ImageDraw, ImageFont
+
+app = FastAPI(title="Agent Nauki API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+HF_TOKEN = os.getenv("HF_TOKEN")
+HF_MODEL_ID = os.getenv("HF_MODEL_ID", "stabilityai/stable-diffusion-xl-base-1.0")
+HF_API_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL_ID}"
+
+
+class GenerateRequest(BaseModel):
+    prompt: str
+    subject: str = "matematyka"
+    task: str = "zadanie edukacyjne"
+
+
+def placeholder_svg(prompt: str) -> str:
+    safe_prompt = prompt.replace("&", "and").replace("<", "").replace(">", "")
+    svg = f"""
+    <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#eef3ff"/>
+          <stop offset="100%" stop-color="#dfe8ff"/>
+        </linearGradient>
+      </defs>
+      <rect width="1200" height="700" fill="url(#bg)"/>
+      <circle cx="210" cy="180" r="90" fill="#ffd98d" opacity="0.9"/>
+      <rect x="130" y="290" width="170" height="150" rx="22" fill="#7c8cff" opacity="0.9"/>
+      <rect x="360" y="220" width="160" height="115" rx="18" fill="#7ce0b8" opacity="0.9"/>
+      <rect x="560" y="300" width="180" height="140" rx="22" fill="#ffb5d8" opacity="0.9"/>
+      <rect x="790" y="210" width="170" height="150" rx="18" fill="#ffd98d" opacity="0.9"/>
+      <rect x="980" y="290" width="120" height="110" rx="18" fill="#8dc9ff" opacity="0.9"/>
+      <text x="600" y="620" text-anchor="middle" font-family="Arial" font-size="46" fill="#2d3b7a" font-weight="700">
+        {safe_prompt[:80]}
+      </text>
+      <text x="600" y="110" text-anchor="middle" font-family="Arial" font-size="56" fill="#2d3b7a" font-weight="700">
+        Agent Nauki
+      </text>
+    </svg>
+    """
+    return "data:image/svg+xml;base64," + base64.b64encode(svg.encode("utf-8")).decode("utf-8")
+
+
+def generate_placeholder_image(prompt: str) -> str:
+    return placeholder_svg(prompt)
+
+
+def generate_from_hf(prompt: str) -> str:
+    if not HF_TOKEN:
+        return generate_placeholder_image(prompt)
+
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "num_inference_steps": 25,
+            "guidance_scale": 7.5,
+            "height": 768,
+            "width": 768,
+        },
+    }
+
+    response = requests.post(HF_API_URL, headers=headers, json=payload, timeout=120)
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"HF generation failed: {response.text[:200]}")
+
+    if 'image' in response.headers.get('content-type', '').lower():
+        image = response.content
+        return "data:image/png;base64," + base64.b64encode(image).decode("utf-8")
+
+    # Some inference routes may return JSON with generated images or a list of objects.
+    try:
+        data = response.json()
+        if isinstance(data, list) and data and isinstance(data[0], dict) and 'generated_image' in data[0]:
+            return data[0]['generated_image']
+    except Exception:
+        pass
+
+    return generate_placeholder_image(prompt)
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "model": HF_MODEL_ID}
+
+
+@app.post("/api/generate")
+def generate(req: GenerateRequest):
+    prompt = req.prompt or "cute educational illustration"
+    try:
+        image_data = generate_from_hf(prompt)
+        return {
+            "image": image_data,
+            "message": "Ilustracja wygenerowana poprawnie." if HF_TOKEN else "Ilustracja lokalna wygenerowana jako placeholder.",
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+app.mount("/", StaticFiles(directory=".", html=True), name="static")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("backend:app", host="0.0.0.0", port=8000, reload=True)

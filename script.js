@@ -9,11 +9,13 @@ const tasks = {
   polski: [
     { question: 'Wskaż poprawną pisownię: "dziecko" czy "dziećko"?', answer: 'dziecko' },
     { question: 'Jak poprawnie napisać: "mama" czy "mamaa"?', answer: 'mama' },
-    { question: 'Wskaż właściwe słowo: "piękny" czy "piękny"?', answer: 'piękny' },
     { question: 'Czy poprawnie brzmi: "Idę do szkoły"?', answer: 'tak' },
-    { question: 'Jak poprawnie napisać: "kotek" czy "kotekk"?', answer: 'kotek' }
+    { question: 'Jak poprawnie napisać: "kotek" czy "kotekk"?', answer: 'kotek' },
+    { question: 'Jak brzmi poprawnie: "piękny" czy "piekny"?', answer: 'piękny' }
   ]
 };
+
+const defaultImage = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='500'%3E%3Crect width='100%25' height='100%25' fill='%23eef3ff'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='42' fill='%235b6df6' font-family='Arial'%3EIlustracja edukacyjna%3C/text%3E%3C/svg%3E";
 
 let currentSubject = 'matematyka';
 let currentTaskIndex = 0;
@@ -25,6 +27,9 @@ const checkBtn = document.getElementById('check-btn');
 const feedbackEl = document.getElementById('feedback');
 const scoreEl = document.getElementById('score');
 const subjectButtons = document.querySelectorAll('.subject-btn');
+const generateImageBtn = document.getElementById('generate-image-btn');
+const taskImageEl = document.getElementById('task-image');
+const imageStatusEl = document.getElementById('image-status');
 
 function getCurrentTask() {
   const taskList = tasks[currentSubject];
@@ -38,6 +43,8 @@ function renderTask() {
   answerInputEl.focus();
   feedbackEl.textContent = '';
   feedbackEl.className = 'feedback';
+  imageStatusEl.textContent = 'Gotowy obraz edukacyjny.';
+  taskImageEl.src = defaultImage;
 }
 
 function updateScore() {
@@ -53,6 +60,42 @@ function setSubject(subject) {
     button.classList.toggle('active', button.dataset.subject === subject);
   });
   renderTask();
+}
+
+async function generateImage() {
+  const task = getCurrentTask();
+  const prompt = `${currentSubject === 'matematyka' ? 'educational math illustration' : 'polish language learning illustration'}, kid-friendly, colorful, simple, clear, high quality, concept art, ${task.question}`;
+
+  imageStatusEl.textContent = 'Generuję ilustrację...';
+  generateImageBtn.disabled = true;
+  generateImageBtn.textContent = 'Generuję...';
+
+  try {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, subject: currentSubject, task: task.question })
+    });
+
+    if (!response.ok) {
+      throw new Error('Pierwsza próba generowania nie powiodła się.');
+    }
+
+    const result = await response.json();
+    if (result.image) {
+      taskImageEl.src = result.image;
+      imageStatusEl.textContent = result.message || 'Ilustracja wygenerowana.';
+    } else {
+      throw new Error('Brak obrazu w odpowiedzi.');
+    }
+  } catch (error) {
+    console.error(error);
+    taskImageEl.src = defaultImage;
+    imageStatusEl.textContent = 'Tryb lokalny: użyto placeholdera edukacyjnego. Ustaw HF_TOKEN, jeśli chcesz aktywne generowanie.';
+  } finally {
+    generateImageBtn.disabled = false;
+    generateImageBtn.textContent = 'Generuj obraz';
+  }
 }
 
 subjectButtons.forEach((button) => {
@@ -83,6 +126,8 @@ checkBtn.addEventListener('click', () => {
   currentTaskIndex += 1;
   setTimeout(renderTask, 900);
 });
+
+generateImageBtn.addEventListener('click', generateImage);
 
 updateScore();
 renderTask();

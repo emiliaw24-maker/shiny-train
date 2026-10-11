@@ -3,6 +3,7 @@
   --panel: #ffffff;
   --primary: #5b6df6;
   --primary-dark: #3d4fd6;
+  --secondary: #e8ebff;
   --accent: #ffbf69;
   --success: #2bb673;
   --danger: #e65d5d;
@@ -25,7 +26,8 @@ body {
 }
 
 .app-shell {
-  width: min(720px, 90vw);
+  width: min(820px, 92vw);
+  padding: 1rem 0 2rem;
 }
 
 .topbar {
@@ -81,7 +83,8 @@ h1 {
   margin-bottom: 1.5rem;
 }
 
-.subject-btn {
+.subject-btn,
+.secondary-btn {
   border: none;
   background: #edf2ff;
   color: var(--text);
@@ -92,7 +95,8 @@ h1 {
   transition: all 0.2s ease;
 }
 
-.subject-btn.active {
+.subject-btn.active,
+.secondary-btn {
   background: var(--primary);
   color: white;
 }
@@ -162,8 +166,49 @@ button:hover {
   color: var(--danger);
 }
 
+.image-panel {
+  margin-top: 1.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 1.25rem;
+  background: #f8f9ff;
+}
+
+.image-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.image-header h3 {
+  margin: 0;
+}
+
+.image-wrapper {
+  background: linear-gradient(135deg, #eef2ff, #ffffff);
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+#task-image {
+  display: block;
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+}
+
+.image-status {
+  margin: 0.8rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
 @media (max-width: 560px) {
-  .topbar {
+  .topbar,
+  .image-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;

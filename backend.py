@@ -1,169 +1,242 @@
-const API_BASE = 'http://localhost:7860';
-let currentSubject = 'matematyka';
-let currentLevel = 1;
-let score = 0;
-let currentTask = null;
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import os
+import sqlite3
+from datetime import datetime
+from dotenv import load_dotenv
 
-const taskTextEl = document.getElementById('task-text');
-const answerInputEl = document.getElementById('answer-input');
-const checkBtn = document.getElementById('check-btn');
-const hintBtn = document.getElementById('hint-btn');
-const feedbackEl = document.getElementById('feedback');
-const hintTextEl = document.getElementById('hint-text');
-const scoreEl = document.getElementById('score');
-const levelLabelEl = document.getElementById('level-label');
-const difficultyChipEl = document.getElementById('difficulty-chip');
-const subjectButtons = document.querySelectorAll('.subject-btn');
-const levelButtons = document.querySelectorAll('.level-btn');
-const generateImageBtn = document.getElementById('generate-image-btn');
-const taskImageEl = document.getElementById('task-image');
-const imageStatusEl = document.getElementById('image-status');
+load_dotenv()
 
-const levelNames = {
-  1: 'Łatwy',
-  2: 'Średni',
-  3: 'Trudny'
-};
+app = FastAPI(title="Agent Nauki", version="2.0.0")
 
-function updateLevelUI() {
-  levelLabelEl.textContent = `Poziom ${currentLevel}`;
-  difficultyChipEl.textContent = levelNames[currentLevel] || 'Łatwy';
-  levelButtons.forEach((button) => {
-    button.classList.toggle('active', Number(button.dataset.level) === currentLevel);
-  });
-}
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-async function loadTask() {
-  try {
-    const response = await fetch(`${API_BASE}/api/generate-task`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subject: currentSubject, level: currentLevel, user_id: 1 })
-    });
+DATABASE = os.getenv("DATABASE", "learning_data.db")
 
-    const data = await response.json();
-    currentTask = data;
-    taskTextEl.textContent = data.question;
-    taskImageEl.src = data.image;
-    answerInputEl.value = '';
-    hintTextEl.textContent = '';
-    feedbackEl.textContent = '';
-    feedbackEl.className = 'feedback';
-    imageStatusEl.textContent = 'Obraz edukacyjny';
-  } catch (e) {
-    console.error(e);
-    taskTextEl.textContent = 'Błąd ładowania zadania';
-  }
-}
 
-subjectButtons.forEach((button) => {
-  button.addEventListener('click', () => {
-    currentSubject = button.dataset.subject;
-    subjectButtons.forEach((b) => b.classList.remove('active'));
-    button.classList.add('active');
-    score = 0;
-    scoreEl.textContent = '0';
-    loadTask();
-  });
-});
+class GenerateTaskRequest(BaseModel):
+    subject: str
+    level: int
+    user_id: int
 
-levelButtons.forEach((button) => {
-  button.addEventListener('click', () => {
-    currentLevel = Number(button.dataset.level);
-    updateLevelUI();
-    score = 0;
-    scoreEl.textContent = '0';
-    loadTask();
-  });
-});
 
-checkBtn.addEventListener('click', async () => {
-  if (!currentTask) return;
+class CheckAnswerRequest(BaseModel):
+    user_id: int
+    task_id: int
+    user_answer: str
+    correct_answer: str
+    question: str
 
-  const answer = answerInputEl.value.trim();
-  if (!answer) {
-    feedbackEl.textContent = 'Wpisz odpowiedź!';
-    feedbackEl.className = 'feedback error';
-    return;
-  }
 
-  try {
-    const response = await fetch(`${API_BASE}/api/check-answer`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: 1,
-        task_id: 1,
-        user_answer: answer,
-        correct_answer: currentTask.answer,
-        question: currentTask.question
-      })
-    });
+class HintRequest(BaseModel):
+    question: str
+    subject: str
 
-    const data = await response.json();
-    if (data.is_correct) {
-      score += 1;
-      scoreEl.textContent = score;
-      feedbackEl.className = 'feedback success';
-    } else {
-      feedbackEl.className = 'feedback error';
+
+class GenerateImageRequest(BaseModel):
+    prompt: str
+    subject: str
+    task: str
+
+
+def init_db() -> None:
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS progress (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            subject TEXT,
+            level INTEGER,
+            correct_count INTEGER DEFAULT 0,
+            total_count INTEGER DEFAULT 0,
+            score INTEGER DEFAULT 0,
+            updated_at TEXT
+        )
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
+init_db()
+
+
+def normalize_answer(value: str) -> str:
+    return " ".join(value.strip().lower().split())
+
+
+def get_fallback_task(subject: str, level: int) -> dict:
+    subject_map = {
+        "matematyka": {
+            1: {"question": "Ile to jest 7 + 5?", "answer": "12"},
+            2: {"question": "Oblicz: 12 × 4", "answer": "48"},
+            3: {"question": "Rozwiąż: 3x = 18", "answer": "6"},
+        },
+        "polski": {
+            1: {"question": "Jaki jest antonim słowa 'dobry'?", "answer": "zły"},
+            2: {"question": "Uzupełnij: 'Książka jest ___ czytania.'", "answer": "do"},
+            3: {"question": "Napisz rzeczownik w liczbie mnogiej od 'dom'.", "answer": "domy"},
+        },
     }
 
-    feedbackEl.textContent = data.feedback;
-    setTimeout(loadTask, 1600);
-  } catch (e) {
-    console.error(e);
-    feedbackEl.textContent = 'Błąd sprawdzania odpowiedzi';
-  }
-});
+    if subject not in subject_map or level not in subject_map[subject]:
+        return {"question": f"Zadanie z {subject} na poziomie {level}.", "answer": "odpowiedź"}
 
-hintBtn.addEventListener('click', async () => {
-  if (!currentTask) return;
+    return subject_map[subject][level]
 
-  try {
-    const response = await fetch(`${API_BASE}/api/hint`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        question: currentTask.question,
-        subject: currentSubject
-      })
-    });
 
-    const data = await response.json();
-    hintTextEl.textContent = `💡 ${data.hint}`;
-  } catch (e) {
-    console.error(e);
-    hintTextEl.textContent = 'Nie udało się pobrać podpowiedzi';
-  }
-});
+def generate_image_url(prompt: str) -> str:
+    fallback = "https://images.unsplash.com/photo-1503676260728-1d2f6b2f0b6d?auto=format&fit=crop&w=1200&q=80"
+    return fallback
 
-generateImageBtn.addEventListener('click', async () => {
-  if (!currentTask) return;
 
-  generateImageBtn.disabled = true;
-  try {
-    const response = await fetch(`${API_BASE}/api/generate-image`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt: currentTask.question,
-        subject: currentSubject,
-        task: currentTask.question
-      })
-    });
+def update_progress(user_id: int, subject: str, level: int, is_correct: bool) -> None:
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
 
-    const data = await response.json();
-    taskImageEl.src = data.image;
-    imageStatusEl.textContent = data.message;
-  } catch (e) {
-    console.error(e);
-    imageStatusEl.textContent = 'Błąd generowania obrazu';
-  } finally {
-    generateImageBtn.disabled = false;
-  }
-});
+    row = cursor.execute(
+        "SELECT correct_count, total_count, score FROM progress WHERE user_id = ? AND subject = ? AND level = ?",
+        (user_id, subject, level),
+    ).fetchone()
 
-scoreEl.textContent = '0';
-updateLevelUI();
-loadTask();
+    now = datetime.utcnow().isoformat()
+
+    if row:
+        correct_count, total_count, _ = row
+        correct_count += 1 if is_correct else 0
+        total_count += 1
+        score = correct_count
+        cursor.execute(
+            "UPDATE progress SET correct_count = ?, total_count = ?, score = ?, updated_at = ? WHERE user_id = ? AND subject = ? AND level = ?",
+            (correct_count, total_count, score, now, user_id, subject, level),
+        )
+    else:
+        correct_count = 1 if is_correct else 0
+        total_count = 1
+        score = correct_count
+        cursor.execute(
+            "INSERT INTO progress (user_id, subject, level, correct_count, total_count, score, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (user_id, subject, level, correct_count, total_count, score, now),
+        )
+
+    conn.commit()
+    conn.close()
+
+
+@app.get("/health")
+def health_check() -> dict:
+    return {"status": "ok", "service": "Agent Nauki Backend"}
+
+
+@app.post("/api/generate-task")
+def generate_task(request: GenerateTaskRequest) -> dict:
+    task = get_fallback_task(request.subject, request.level)
+    return {
+        "question": task["question"],
+        "answer": task["answer"],
+        "image": generate_image_url(task["question"]),
+        "subject": request.subject,
+        "level": request.level,
+    }
+
+
+@app.post("/api/check-answer")
+def check_answer(request: CheckAnswerRequest) -> dict:
+    is_correct = normalize_answer(request.user_answer) == normalize_answer(request.correct_answer)
+    feedback = (
+        "🎉 Poprawnie! Świetna robota!"
+        if is_correct
+        else f"❌ Niepoprawnie. Poprawna odpowiedź to: {request.correct_answer}"
+    )
+
+    update_progress(request.user_id, "matematyka", 1, is_correct)
+
+    return {
+        "is_correct": is_correct,
+        "feedback": feedback,
+        "correct_answer": request.correct_answer,
+    }
+
+
+@app.post("/api/hint")
+def hint(request: HintRequest) -> dict:
+    hint_text = "Zastanów się, co najważniejsze wynika z treści zadania. Spróbuj rozbić problem na mniejsze części."
+    return {"hint": hint_text}
+
+
+@app.post("/api/generate-image")
+def generate_image(request: GenerateImageRequest) -> dict:
+    return {
+        "image": generate_image_url(request.prompt),
+        "message": "Obraz edukacyjny gotowy.",
+    }
+
+
+@app.get("/api/stats/{user_id}")
+def get_stats(user_id: int) -> dict:
+    conn = sqlite3.connect(DATABASE)
+    rows = conn.execute(
+        "SELECT subject, level, correct_count, total_count, score FROM progress WHERE user_id = ?",
+        (user_id,),
+    ).fetchall()
+    conn.close()
+
+    return {
+        "user_id": user_id,
+        "progress": [
+            {
+                "subject": row[0],
+                "level": row[1],
+                "correct": row[2],
+                "total": row[3],
+                "score": row[4],
+            }
+            for row in rows
+        ],
+    }
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=7860)
+
+
+"""
+
+"""
+"""
+"""
+"""
+"""
+"""
+"""
+"""
+"""
+"""
+"""
+"""
+"""
+"""
+"""
+"""
+"""
+"""
+
+"""
+"""
+"""
+"""
+"""
+"""
+"""
+

@@ -1,258 +1,169 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-import os
-import json
-import sqlite3
-from datetime import datetime
-import requests
-import base64
+const API_BASE = 'http://localhost:7860';
+let currentSubject = 'matematyka';
+let currentLevel = 1;
+let score = 0;
+let currentTask = null;
 
-app = FastAPI(title="Agent Nauki API")
+const taskTextEl = document.getElementById('task-text');
+const answerInputEl = document.getElementById('answer-input');
+const checkBtn = document.getElementById('check-btn');
+const hintBtn = document.getElementById('hint-btn');
+const feedbackEl = document.getElementById('feedback');
+const hintTextEl = document.getElementById('hint-text');
+const scoreEl = document.getElementById('score');
+const levelLabelEl = document.getElementById('level-label');
+const difficultyChipEl = document.getElementById('difficulty-chip');
+const subjectButtons = document.querySelectorAll('.subject-btn');
+const levelButtons = document.querySelectorAll('.level-btn');
+const generateImageBtn = document.getElementById('generate-image-btn');
+const taskImageEl = document.getElementById('task-image');
+const imageStatusEl = document.getElementById('image-status');
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+const levelNames = {
+  1: 'Łatwy',
+  2: 'Średni',
+  3: 'Trudny'
+};
 
-HF_TOKEN = os.getenv("HF_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-HF_MODEL_ID = os.getenv("HF_MODEL_ID", "mistralai/Mistral-7B-Instruct-v0.1")
-HF_IMAGE_MODEL = os.getenv("HF_IMAGE_MODEL", "stabilityai/stable-diffusion-xl-base-1.0")
-DB_FILE = "learning_data.db"
+function updateLevelUI() {
+  levelLabelEl.textContent = `Poziom ${currentLevel}`;
+  difficultyChipEl.textContent = levelNames[currentLevel] || 'Łatwy';
+  levelButtons.forEach((button) => {
+    button.classList.toggle('active', Number(button.dataset.level) === currentLevel);
+  });
+}
 
-def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY,
-            username TEXT UNIQUE NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS tasks (
-            id INTEGER PRIMARY KEY,
-            user_id INTEGER,
-            subject TEXT,
-            question TEXT,
-            correct_answer TEXT,
-            user_answer TEXT,
-            is_correct BOOLEAN,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(user_id) REFERENCES users(id)
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS chat_history (
-            id INTEGER PRIMARY KEY,
-            user_id INTEGER,
-            role TEXT,
-            message TEXT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(user_id) REFERENCES users(id)
-        )
-    ''')
-    conn.commit(); conn.close()
+async function loadTask() {
+  try {
+    const response = await fetch(`${API_BASE}/api/generate-task`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject: currentSubject, level: currentLevel, user_id: 1 })
+    });
 
-init_db()
+    const data = await response.json();
+    currentTask = data;
+    taskTextEl.textContent = data.question;
+    taskImageEl.src = data.image;
+    answerInputEl.value = '';
+    hintTextEl.textContent = '';
+    feedbackEl.textContent = '';
+    feedbackEl.className = 'feedback';
+    imageStatusEl.textContent = 'Obraz edukacyjny';
+  } catch (e) {
+    console.error(e);
+    taskTextEl.textContent = 'Błąd ładowania zadania';
+  }
+}
 
-class GenerateTaskRequest(BaseModel):
-    subject: str = "matematyka"
-    level: int = 1
-    user_id: int = 1
+subjectButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    currentSubject = button.dataset.subject;
+    subjectButtons.forEach((b) => b.classList.remove('active'));
+    button.classList.add('active');
+    score = 0;
+    scoreEl.textContent = '0';
+    loadTask();
+  });
+});
 
-class CheckAnswerRequest(BaseModel):
-    user_id: int
-    task_id: int
-    user_answer: str
-    correct_answer: str
-    question: str
+levelButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    currentLevel = Number(button.dataset.level);
+    updateLevelUI();
+    score = 0;
+    scoreEl.textContent = '0';
+    loadTask();
+  });
+});
 
-class HintRequest(BaseModel):
-    question: str
-    subject: str
+checkBtn.addEventListener('click', async () => {
+  if (!currentTask) return;
 
-class ChatRequest(BaseModel):
-    user_id: int
-    message: str
+  const answer = answerInputEl.value.trim();
+  if (!answer) {
+    feedbackEl.textContent = 'Wpisz odpowiedź!';
+    feedbackEl.className = 'feedback error';
+    return;
+  }
 
-class GenerateImageRequest(BaseModel):
-    prompt: str
-    subject: str = "matematyka"
-    task: str = "zadanie edukacyjne"
+  try {
+    const response = await fetch(`${API_BASE}/api/check-answer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: 1,
+        task_id: 1,
+        user_answer: answer,
+        correct_answer: currentTask.answer,
+        question: currentTask.question
+      })
+    });
 
+    const data = await response.json();
+    if (data.is_correct) {
+      score += 1;
+      scoreEl.textContent = score;
+      feedbackEl.className = 'feedback success';
+    } else {
+      feedbackEl.className = 'feedback error';
+    }
 
-def generate_fallback_task(prompt: str) -> str:
-    math = [
-        "Pytanie: Ile to 7 + 5?\nOdpowiedź: 12",
-        "Pytanie: Ile to 9 × 3?\nOdpowiedź: 27",
-        "Pytanie: Jaki jest wynik: 15 - 8?\nOdpowiedź: 7",
-        "Pytanie: Ile to 20 ÷ 4?\nOdpowiedź: 5",
-        "Pytanie: Ile to 6 + 9?\nOdpowiedź: 15",
-    ]
-    polish = [
-        "Pytanie: Wskaż poprawną pisownię: 'dziecko' czy 'dziećko'?\nOdpowiedź: dziecko",
-        "Pytanie: Jak poprawnie napisać: 'mama' czy 'mamaa'?\nOdpowiedź: mama",
-        "Pytanie: Czy poprawnie brzmi: 'Idę do szkoły'?\nOdpowiedź: tak",
-        "Pytanie: Jak poprawnie napisać: 'kotek' czy 'kotekk'?\nOdpowiedź: kotek",
-        "Pytanie: Jak brzmi poprawnie: 'piękny' czy 'piekny'?\nOdpowiedź: piękny",
-    ]
-    import random
-    return random.choice(math if 'matematyka' in prompt.lower() else polish)
+    feedbackEl.textContent = data.feedback;
+    setTimeout(loadTask, 1600);
+  } catch (e) {
+    console.error(e);
+    feedbackEl.textContent = 'Błąd sprawdzania odpowiedzi';
+  }
+});
 
+hintBtn.addEventListener('click', async () => {
+  if (!currentTask) return;
 
-def query_hf_llm(prompt: str) -> str:
-    if not HF_TOKEN:
-        return generate_fallback_task(prompt)
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    payload = {"inputs": prompt, "parameters": {"max_length": 512, "temperature": 0.7, "top_p": 0.95}}
-    try:
-        r = requests.post(f"https://api-inference.huggingface.co/models/{HF_MODEL_ID}", headers=headers, json=payload, timeout=30)
-        if r.status_code == 200:
-            result = r.json()
-            if isinstance(result, list) and result and isinstance(result[0], dict):
-                return result[0].get('generated_text', generate_fallback_task(prompt))
-        return generate_fallback_task(prompt)
-    except Exception as e:
-        print('HF error:', e)
-        return generate_fallback_task(prompt)
+  try {
+    const response = await fetch(`${API_BASE}/api/hint`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: currentTask.question,
+        subject: currentSubject
+      })
+    });
 
+    const data = await response.json();
+    hintTextEl.textContent = `💡 ${data.hint}`;
+  } catch (e) {
+    console.error(e);
+    hintTextEl.textContent = 'Nie udało się pobrać podpowiedzi';
+  }
+});
 
-def query_openai(prompt: str, system_role: str = "You are a friendly Polish learning tutor.") -> str:
-    if not OPENAI_API_KEY:
-        return "Feedback: Świetnie! Kontynuuj naukę."
-    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
-    payload = {"model": "gpt-4o-mini", "messages": [{"role": "system", "content": system_role}, {"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 256}
-    try:
-        r = requests.post('https://api.openai.com/v1/chat/completions', headers=headers, json=payload, timeout=30)
-        if r.status_code == 200:
-            data = r.json()
-            return data['choices'][0]['message']['content']
-        return 'Wystąpił problem z modelem. Spróbuj ponownie.'
-    except Exception as e:
-        print('OpenAI error:', e)
-        return 'Feedback: Dobrze! Kontynuuj naukę.'
+generateImageBtn.addEventListener('click', async () => {
+  if (!currentTask) return;
 
+  generateImageBtn.disabled = true;
+  try {
+    const response = await fetch(`${API_BASE}/api/generate-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: currentTask.question,
+        subject: currentSubject,
+        task: currentTask.question
+      })
+    });
 
-def save_task(user_id: int, subject: str, question: str, correct_answer: str, user_answer: str, is_correct: bool):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('''INSERT INTO tasks (user_id, subject, question, correct_answer, user_answer, is_correct) VALUES (?, ?, ?, ?, ?, ?)''', (user_id, subject, question, correct_answer, user_answer, int(is_correct)))
-    conn.commit(); conn.close()
+    const data = await response.json();
+    taskImageEl.src = data.image;
+    imageStatusEl.textContent = data.message;
+  } catch (e) {
+    console.error(e);
+    imageStatusEl.textContent = 'Błąd generowania obrazu';
+  } finally {
+    generateImageBtn.disabled = false;
+  }
+});
 
-
-def save_chat(user_id: int, role: str, message: str):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('''INSERT INTO chat_history (user_id, role, message) VALUES (?, ?, ?)''', (user_id, role, message))
-    conn.commit(); conn.close()
-
-
-def get_stats(user_id: int):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('SELECT COUNT(*) FROM tasks WHERE user_id = ?', (user_id,))
-    total = c.fetchone()[0]
-    c.execute('SELECT COUNT(*) FROM tasks WHERE user_id = ? AND is_correct = 1', (user_id,))
-    correct = c.fetchone()[0]
-    c.execute('SELECT subject, COUNT(*), SUM(is_correct) FROM tasks WHERE user_id = ? GROUP BY subject', (user_id,))
-    rows = c.fetchall()
-    conn.close()
-    accuracy = round((correct / total) * 100, 2) if total else 0
-    return {"total_tasks": total, "correct_tasks": correct, "accuracy": accuracy, "subjects": [{"name": r[0], "total": r[1], "correct": r[2] or 0} for r in rows]}
-
-
-def generate_placeholder_svg(prompt: str) -> str:
-    safe = prompt.replace('&', 'and')[:60]
-    svg = f"""
-    <svg xmlns='http://www.w3.org/2000/svg' width='1200' height='700' viewBox='0 0 1200 700'>
-      <defs>
-        <linearGradient id='bg' x1='0%' y1='0%' x2='100%' y2='100%'>
-          <stop offset='0%' stop-color='#eef3ff'/>
-          <stop offset='100%' stop-color='#dfe8ff'/>
-        </linearGradient>
-      </defs>
-      <rect width='1200' height='700' fill='url(#bg)'/>
-      <circle cx='210' cy='180' r='90' fill='#ffd98d' opacity='0.9'/>
-      <rect x='130' y='290' width='170' height='150' rx='22' fill='#7c8cff' opacity='0.9'/>
-      <rect x='360' y='220' width='160' height='115' rx='18' fill='#7ce0b8' opacity='0.9'/>
-      <rect x='560' y='300' width='180' height='140' rx='22' fill='#ffb5d8' opacity='0.9'/>
-      <rect x='790' y='210' width='170' height='150' rx='18' fill='#ffd98d' opacity='0.9'/>
-      <rect x='980' y='290' width='120' height='110' rx='18' fill='#8dc9ff' opacity='0.9'/>
-      <text x='600' y='620' text-anchor='middle' font-family='Arial' font-size='38' fill='#2d3b7a' font-weight='700'>{safe}</text>
-      <text x='600' y='110' text-anchor='middle' font-family='Arial' font-size='56' fill='#2d3b7a' font-weight='700'>Agent Nauki</text>
-    </svg>
-    """
-    return 'data:image/svg+xml;base64,' + base64.b64encode(svg.encode('utf-8')).decode('utf-8')
-
-
-def generate_image_from_hf(prompt: str) -> str:
-    if not HF_TOKEN:
-        return generate_placeholder_svg(prompt)
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    payload = {"inputs": prompt, "parameters": {"num_inference_steps": 25, "guidance_scale": 7.5, "height": 768, "width": 768}}
-    try:
-        r = requests.post(f'https://api-inference.huggingface.co/models/{HF_IMAGE_MODEL}', headers=headers, json=payload, timeout=120)
-        if r.status_code == 200 and 'image' in r.headers.get('content-type', '').lower():
-            return 'data:image/png;base64,' + base64.b64encode(r.content).decode('utf-8')
-    except Exception as e:
-        print('Image error:', e)
-    return generate_placeholder_svg(prompt)
-
-@app.get('/health')
-def health():
-    return {"status": "ok", "hf": bool(HF_TOKEN), "openai": bool(OPENAI_API_KEY), "hf_model": HF_MODEL_ID}
-
-@app.post('/api/generate-task')
-def generate_task(req: GenerateTaskRequest):
-    prompt = f"Generate a {req.subject} learning task for level {req.level}. Format: Pytanie: ...\nOdpowiedź: ..."
-    raw = query_hf_llm(prompt)
-    lines = [line.strip() for line in raw.splitlines() if line.strip()]
-    question = next((line.replace('Pytanie:', '').replace('Question:', '').strip() for line in lines if 'Pytanie:' in line or 'Question:' in line), 'Ile to 7 + 5?')
-    answer = next((line.replace('Odpowiedź:', '').replace('Answer:', '').strip() for line in lines if 'Odpowiedź:' in line or 'Answer:' in line), '12')
-    image = generate_image_from_hf(f"{req.subject} educational illustration for: {question}")
-    return {"question": question, "answer": answer, "subject": req.subject, "image": image, "message": "Zadanie wygenerowane."}
-
-@app.post('/api/check-answer')
-def check_answer(req: CheckAnswerRequest):
-    ok = req.user_answer.strip().lower() == req.correct_answer.strip().lower()
-    save_task(req.user_id, 'quiz', req.question, req.correct_answer, req.user_answer, ok)
-    if ok:
-        prompt = f"Student answered correctly to: {req.question}. Give a brief encouraging message in Polish."
-    else:
-        prompt = f"Student answered '{req.user_answer}' to '{req.question}'. Correct answer is '{req.correct_answer}'. Give a brief explanation in Polish and encourage them."
-    feedback = query_openai(prompt, 'You are a helpful Polish learning tutor.')
-    return {"is_correct": ok, "feedback": feedback, "correct_answer": req.correct_answer, "message": "Poprawnie!" if ok else "Spróbuj jeszcze raz."}
-
-@app.post('/api/hint')
-def hint(req: HintRequest):
-    prompt = f"Give a helpful hint in Polish for this {req.subject} task: {req.question}"
-    return {"hint": query_openai(prompt, 'You are a friendly Polish learning tutor.')}
-
-@app.post('/api/chat')
-def chat(req: ChatRequest):
-    save_chat(req.user_id, 'user', req.message)
-    response = query_openai(req.message, 'You are a friendly Polish learning tutor. Keep answers concise and encouraging.')
-    save_chat(req.user_id, 'assistant', response)
-    return {"response": response}
-
-@app.get('/api/stats/{user_id}')
-def stats(user_id: int):
-    return get_stats(user_id)
-
-@app.post('/api/generate-image')
-def generate_image(req: GenerateImageRequest):
-    return {"image": generate_image_from_hf(req.prompt), "message": "Ilustracja wygenerowana." if HF_TOKEN else "Tryb lokalny: placeholder."}
-
-app.mount('/', StaticFiles(directory='.', html=True), name='static')
-
-if __name__ == '__main__':
-    import uvicorn
-    uvicorn.run('backend:app', host='0.0.0.0', port=7860, reload=False)
-
+scoreEl.textContent = '0';
+updateLevelUI();
+loadTask();

@@ -1,64 +1,74 @@
-:root {
-  --bg: #f4f7fb;
-  --panel: #ffffff;
-  --primary: #5b6df6;
-  --primary-dark: #3d4fd6;
-  --secondary: #e8ebff;
-  --accent: #ffbf69;
-  --success: #2bb673;
-  --danger: #e65d5d;
-  --text: #1f2937;
-  --muted: #6b7280;
-}
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent Nauki</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-wrap">
+          <div class="brand-badge">AI</div>
+          <div>
+            <p class="eyebrow">Tutor edukacyjny</p>
+            <h1>Agent Nauki</h1>
+          </div>
+        </div>
 
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, #eef2ff, #f8fafc);
-  color: var(--text);
-  font-family: Arial, Helvetica, sans-serif;
-}
+        <div class="score-box">
+          <span>Wynik</span>
+          <strong id="score">0</strong>
+          <small id="level-label">Poziom 1</small>
+        </div>
+      </header>
 
-.app-shell { width: min(820px, 92vw); padding: 1rem 0 2rem; }
-.topbar {
-  display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;
-}
-.eyebrow { margin: 0; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-size: 0.72rem; }
-h1 { margin: 0.2rem 0 0; font-size: clamp(2rem, 4vw, 3rem); }
-.score-box {
-  background: var(--panel); border-radius: 18px; padding: 0.9rem 1.1rem; box-shadow: 0 12px 30px rgba(91,109,246,0.08);
-  display: flex; flex-direction: column; align-items: center;
-}
-.score-box span { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; }
-.score-box strong { font-size: 1.8rem; }
-.panel { background: var(--panel); border-radius: 28px; padding: 1.5rem; box-shadow: 0 16px 40px rgba(15,23,42,0.08); }
-.subject-selector { display: flex; gap: 0.8rem; margin-bottom: 1.5rem; }
-.subject-btn, .secondary-btn {
-  border: none; background: #edf2ff; color: var(--text); border-radius: 999px; padding: 0.8rem 1.2rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;
-}
-.subject-btn.active { background: var(--primary); color: white; }
-.task-card {
-  border: 1px solid #e5e7eb; border-radius: 20px; padding: 1.4rem; background: #fafbff;
-}
-.task-label { margin: 0 0 0.5rem; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
-#task-text { margin: 0 0 1.2rem; font-size: clamp(1.5rem, 2vw, 2.2rem); }
-.answer-row { display: flex; gap: 0.8rem; flex-wrap: wrap; }
-input { flex: 1; min-width: 180px; padding: 0.9rem 1rem; border: 1px solid #d1d5db; border-radius: 12px; font-size: 1rem; }
-button {
-  border: none; background: var(--primary); color: white; border-radius: 12px; padding: 0.9rem 1.2rem; font-weight: 700; cursor: pointer; transition: transform 0.15s ease, background 0.2s ease;
-}
-button:hover { background: var(--primary-dark); transform: translateY(-1px); }
-.feedback { min-height: 1.5rem; margin: 1rem 0 0; font-weight: 700; }
-.feedback.success { color: var(--success); }
-.feedback.error { color: var(--danger); }
-.hint-text { min-height: 1.2rem; margin: 0.5rem 0 0; color: var(--muted); font-style: italic; }
-.image-panel { margin-top: 1.5rem; border: 1px solid #e5e7eb; border-radius: 20px; padding: 1.25rem; background: #f8f9ff; }
-.image-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
-.image-header h3 { margin: 0; }
-.image-wrapper { background: linear-gradient(135deg, #eef2ff, #ffffff); border-radius: 18px; overflow: hidden; border: 1px solid #e5e7eb; }
-#task-image { display: block; width: 100%; height: 300px; object-fit: cover; }
-.image-status { margin: 0.8rem 0 0; color: var(--muted); font-size: 0.95rem; }
-@media (max-width: 560px) { .topbar, .image-header { flex-direction: column; align-items: flex-start; gap: 1rem; } .score-box { align-self: stretch; } }
+      <main class="panel">
+        <section class="selector-block">
+          <div class="subject-selector">
+            <button class="subject-btn active" data-subject="matematyka">Matematyka</button>
+            <button class="subject-btn" data-subject="polski">Polski</button>
+          </div>
+
+          <div class="level-selector" aria-label="Poziomy trudności">
+            <button class="level-btn active" data-level="1">Poziom 1</button>
+            <button class="level-btn" data-level="2">Poziom 2</button>
+            <button class="level-btn" data-level="3">Poziom 3</button>
+          </div>
+        </section>
+
+        <section class="task-card">
+          <div class="task-topline">
+            <span class="task-label">Zadanie</span>
+            <span id="difficulty-chip" class="difficulty-chip">Łatwy</span>
+          </div>
+
+          <h2 id="task-text">Ładuję zadanie...</h2>
+
+          <div class="answer-row">
+            <input id="answer-input" type="text" placeholder="Wpisz odpowiedź" aria-label="Odpowiedź" />
+            <button id="check-btn">Sprawdź</button>
+            <button id="hint-btn" class="secondary-btn">Podpowiedź</button>
+          </div>
+
+          <p id="feedback" class="feedback" aria-live="polite"></p>
+          <p id="hint-text" class="hint-text" aria-live="polite"></p>
+        </section>
+
+        <section class="image-panel">
+          <div class="image-header">
+            <h3>Ilustracja do zadania</h3>
+            <button id="generate-image-btn" class="secondary-btn">Generuj obraz</button>
+          </div>
+          <div class="image-wrapper">
+            <img id="task-image" alt="Generated illustration" src="" />
+          </div>
+          <p id="image-status" class="image-status">Gotowy obraz edukacyjny.</p>
+        </section>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

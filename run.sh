@@ -1,19 +1,17 @@
-#!/bin/bash
-set -e
+# Hugging Face Configuration
+HF_TOKEN=hf_your_huggingface_token_here
+HF_MODEL_ID=mistralai/Mistral-7B-Instruct-v0.1
+HF_IMAGE_MODEL=stabilityai/stable-diffusion-xl-base-1.0
 
-echo "🚀 Agent Nauki - starting backend..."
+# OpenAI Configuration
+OPENAI_API_KEY=sk_your_openai_api_key_here
 
-echo "📦 Sprawdzanie środowiska..."
-if [ ! -f .env ]; then
-    echo "⚠️  Brak pliku .env. Tworzę przykładowy plik z .env.example..."
-    cp .env.example .env
-    echo "✅ Utworzono .env. Uzupełnij dane logowania do API."
-fi
+# Database
+DATABASE=learning_data.db
 
-echo "📚 Ładowanie zmiennych środowiskowych..."
-set -a
-source .env
-set +a
+# Backend Configuration
+BACKEND_PORT=7860
+FRONTEND_PORT=3000
 
-echo "🔄 Uruchamianie FastAPI na porcie 7860..."
-uvicorn backend:app --host 0.0.0.0 --port 7860 --reload
+# Frontend API
+NEXT_PUBLIC_API_BASE=http://127.0.0.1:7860

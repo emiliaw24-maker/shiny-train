@@ -1,0 +1,19 @@
+# dependencies
+/node_modules
+/.next
+/out
+
+# production
+/build
+
+# misc
+.DS_Store
+*.log
+
+# env
+.env
+.env.local
+.env.*
+
+# IDE
+.vscode

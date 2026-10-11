@@ -1,0 +1,254 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #eef3ff, #eefaf5);
+  color: #1f2a37;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+.page-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.app-card {
+  width: min(920px, 96vw);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 32px;
+  box-shadow: 0 28px 70px rgba(31, 42, 55, 0.12);
+  padding: 24px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-badge {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #5f6fff, #79a5ff);
+  box-shadow: 0 12px 28px rgba(95, 111, 255, 0.35);
+  font-size: 2rem;
+}
+
+.eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-size: 0.7rem;
+}
+
+h1 {
+  margin: 4px 0 0;
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.score-box {
+  min-width: 120px;
+  padding: 12px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.score-box span,
+.score-box small {
+  color: #64748b;
+}
+
+.score-box strong {
+  font-size: 1.8rem;
+  line-height: 1.2;
+}
+
+.selector-block {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.subject-selector,
+.levels-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pill {
+  border: 0;
+  border-radius: 999px;
+  background: #edf2ff;
+  color: #1f2a37;
+  padding: 0.82rem 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pill.active {
+  background: linear-gradient(135deg, #5f6fff, #7a8dff);
+  color: white;
+  box-shadow: 0 10px 24px rgba(95, 111, 255, 0.2);
+}
+
+.task-card,
+.image-card {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 24px;
+  background: linear-gradient(180deg, #fafbff, #f8f9ff);
+  padding: 22px;
+}
+
+.task-head,
+.image-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.task-label {
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.chip {
+  background: #fff2db;
+  color: #9a5b00;
+  border-radius: 999px;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+h2 {
+  margin: 0 0 18px;
+  font-size: clamp(1.6rem, 2.4vw, 2.4rem);
+  line-height: 1.3;
+}
+
+.answer-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+input {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.95rem 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+button {
+  border: 0;
+  border-radius: 14px;
+  cursor: pointer;
+  padding: 0.9rem 1.15rem;
+  background: linear-gradient(135deg, #5f6fff, #7a8dff);
+  color: white;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 18px rgba(95, 111, 255, 0.18);
+}
+
+button.secondary {
+  background: #eef1ff;
+  color: #3d49d1;
+}
+
+.feedback,
+.hint {
+  margin: 14px 0 0;
+  font-weight: 600;
+}
+
+.feedback {
+  color: #21b26b;
+}
+
+.hint {
+  color: #64748b;
+  font-style: italic;
+}
+
+.image-card {
+  margin-top: 22px;
+}
+
+.image-frame {
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  min-height: 260px;
+}
+
+.image-frame img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+}
+
+@media (max-width: 620px) {
+  .topbar,
+  .selector-block,
+  .task-head,
+  .image-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .score-box {
+    align-self: stretch;
+  }
+}

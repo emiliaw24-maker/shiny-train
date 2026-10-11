@@ -33,6 +33,8 @@ class CheckAnswerRequest(BaseModel):
     user_answer: str
     correct_answer: str
     question: str
+    subject: str | None = None
+    level: int | None = None
 
 
 class HintRequest(BaseModel):
@@ -95,8 +97,7 @@ def get_fallback_task(subject: str, level: int) -> dict:
 
 
 def generate_image_url(prompt: str) -> str:
-    fallback = "https://images.unsplash.com/photo-1503676260728-1d2f6b2f0b6d?auto=format&fit=crop&w=1200&q=80"
-    return fallback
+    return "https://images.unsplash.com/photo-1503676260728-1d2f6b2f0b6d?auto=format&fit=crop&w=1200&q=80"
 
 
 def update_progress(user_id: int, subject: str, level: int, is_correct: bool) -> None:
@@ -151,6 +152,8 @@ def generate_task(request: GenerateTaskRequest) -> dict:
 
 @app.post("/api/check-answer")
 def check_answer(request: CheckAnswerRequest) -> dict:
+    subject = request.subject or "matematyka"
+    level = request.level or 1
     is_correct = normalize_answer(request.user_answer) == normalize_answer(request.correct_answer)
     feedback = (
         "🎉 Poprawnie! Świetna robota!"
@@ -158,7 +161,7 @@ def check_answer(request: CheckAnswerRequest) -> dict:
         else f"❌ Niepoprawnie. Poprawna odpowiedź to: {request.correct_answer}"
     )
 
-    update_progress(request.user_id, "matematyka", 1, is_correct)
+    update_progress(request.user_id, subject, level, is_correct)
 
     return {
         "is_correct": is_correct,
@@ -209,34 +212,3 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=7860)
-
-
-"""
-
-"""
-"""
-"""
-"""
-"""
-"""
-"""
-"""
-"""
-"""
-"""
-"""
-"""
-"""
-"""
-"""
-"""
-"""
-
-"""
-"""
-"""
-"""
-"""
-"""
-"""
-

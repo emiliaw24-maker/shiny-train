@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent Nauki</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Tutor edukacyjny</p>
+          <h1>Agent Nauki</h1>
+        </div>
+        <div class="score-box">
+          <span>Wynik</span>
+          <strong id="score">0</strong>
+        </div>
+      </header>
+
+      <main class="panel">
+        <section class="subject-selector">
+          <button class="subject-btn active" data-subject="matematyka">Matematyka</button>
+          <button class="subject-btn" data-subject="polski">Polski</button>
+        </section>
+
+        <section class="task-card">
+          <p class="task-label">Zadanie</p>
+          <h2 id="task-text">Ile to 7 + 5?</h2>
+
+          <div class="answer-row">
+            <input id="answer-input" type="text" placeholder="Wpisz odpowiedź" aria-label="Odpowiedź" />
+            <button id="check-btn">Sprawdź</button>
+          </div>
+
+          <p id="feedback" class="feedback" aria-live="polite"></p>
+        </section>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

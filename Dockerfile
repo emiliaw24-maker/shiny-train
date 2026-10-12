@@ -21,6 +21,7 @@ COPY --from=frontend-builder /app/.next ./.next
 COPY --from=frontend-builder /app/node_modules ./node_modules
 COPY --from=frontend-builder /app/package.json ./package.json
 COPY --from=frontend-builder /app/app ./app
+COPY --from=frontend-builder /app/next.config.mjs ./next.config.mjs
 COPY backend.py ./
 COPY run.sh ./
 RUN chmod +x run.sh && mkdir -p public

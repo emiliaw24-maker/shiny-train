@@ -1,19 +1,14 @@
-#!/bin/bash
-set -e
+#!/bin/sh
+set -eu
 
-echo "🚀 Agent Nauki - Starting backend..."
-echo "📦 Checking environment..."
+echo "Starting Agent Nauki API on port 7861..."
+uvicorn backend:app --host 127.0.0.1 --port 7861 &
+BACKEND_PID=$!
 
-if [ ! -f .env ]; then
-    echo "⚠️  .env file not found. Copying from .env.example..."
-    cp .env.example .env
-    echo "✅ Created .env file. Please edit it with your tokens."
-fi
+cleanup() {
+  kill "$BACKEND_PID" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
 
-echo "📚 Loading environment variables..."
-set -a
-source .env
-set +a
-
-echo "🔄 Starting FastAPI backend on port 7860..."
-uvicorn backend:app --host 0.0.0.0 --port 7860 --reload
+echo "Starting Agent Nauki frontend on port 7860..."
+npm start -- --hostname 0.0.0.0

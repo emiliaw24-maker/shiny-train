@@ -31,6 +31,27 @@ export default function HomePage() {
   const [hint, setHint] = useState("");
   const [loading, setLoading] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState("");
+
+  const speak = (message: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      setVoiceStatus("Ta przeglądarka nie obsługuje odczytywania głosu.");
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = "pl-PL";
+    utterance.rate = 0.9;
+    utterance.pitch = 1.08;
+    const voices = window.speechSynthesis.getVoices();
+    const polish = voices.filter((voice) => voice.lang.toLowerCase().startsWith("pl"));
+    const preferred = polish.find((voice) => /female|zosia|paulina|ewa|maja/i.test(voice.name)) || polish[0];
+    if (preferred) utterance.voice = preferred;
+    utterance.onstart = () => setVoiceStatus("Luna mówi…");
+    utterance.onend = () => setVoiceStatus("");
+    utterance.onerror = () => setVoiceStatus("Nie udało się odtworzyć głosu. Sprawdź ustawienia dźwięku.");
+    window.speechSynthesis.speak(utterance);
+  };
 
   const levelName = useMemo(() => levelLabels[level] || "Łatwy", [level]);
 
@@ -145,13 +166,18 @@ export default function HomePage() {
         <section className="task-card">
           <div className="task-head"><span className="task-label">Zadanie</span><span className="chip">{levelName}</span></div>
           <h2>{loading ? "Ładowanie zadania..." : task?.question}</h2>
+          <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+            <button type="button" className="secondary" onClick={() => speak(`Cześć! Jestem Luna. Posłuchaj zadania. ${task?.question || ""}`)} disabled={loading || !task}>🔊 Posłuchaj Luny</button>
+            <button type="button" className="secondary" onClick={() => { window.speechSynthesis?.cancel(); setVoiceStatus(""); }}>⏹ Zatrzymaj głos</button>
+          </div>
+          {voiceStatus ? <p role="status" className="hint">{voiceStatus}</p> : null}
           <div className="answer-row">
             <input value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Wpisz odpowiedź" aria-label="Odpowiedź" onKeyDown={(e) => { if (e.key === "Enter") void handleCheck(); }} />
             <button onClick={() => void handleCheck()} disabled={loading || !task?.answer}>Sprawdź</button>
             <button className="secondary" onClick={() => void handleHint()} disabled={loading || !task}>💡 Podpowiedź</button>
           </div>
-          {feedback ? <p className="feedback" role="status">{feedback}</p> : null}
-          {hint ? <p className="hint" role="status">{hint}</p> : null}
+          {feedback ? <p className="feedback" role="status">{feedback} <button type="button" className="secondary" onClick={() => speak(feedback)}>🔊 Odsłuchaj</button></p> : null}
+          {hint ? <p className="hint" role="status">{hint} <button type="button" className="secondary" onClick={() => speak(hint)}>🔊 Odsłuchaj</button></p> : null}
         </section>
 
         <section className="image-card">
